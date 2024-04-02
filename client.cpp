@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "protocol.pb.h" 
+#include "chat.pb.h" 
 
 
 int sockfd; // Socket descriptor
@@ -35,40 +35,6 @@ int getUserInput() {
     int choice;
     std::cin >> choice;
     return choice;
-}
-
-void processUserChoice(int choice) {
-    switch (choice) {
-        case 1:
-            std::cout << "\n[Chatear con todos] Opcion seleccionada.\n";
-            enviarMensajeBroadcast();
-            break;
-        case 2:
-            std::cout << "\n[Enviar y recibir mensajes directos] Opcion seleccionada.\n";
-            enviarMensajeDirecto()
-            break;
-        case 3:
-            std::cout << "\n[Cambiar de status] Opcion seleccionada.\n";
-            cambiarEstado();
-            break;
-        case 4:
-            std::cout << "\n[Listar usuarios conectados] Opcion seleccionada.\n";
-            listarUsuarios()
-            break;
-        case 5:
-            std::cout << "\n[Desplegar informacion de usuario] Opcion seleccionada.\n";
-            solicitarInformacionUsuario();
-            break;
-        case 6:
-            std::cout << "\n[Ayuda] Opción seleccionada.\n";
-            // Ayuda Funcion
-            break;
-        case 7:
-            std::cout << "\n[Salir] Saliendo del programa...\n";
-            break;
-        default:
-            std::cout << "\nOpcion no valida. Por favor, intenta de nuevo.\n";
-    }
 }
 
 void enviarMensajeBroadcast() {
@@ -173,7 +139,7 @@ void solicitarInformacionUsuario() {
     peticion.set_option(5); // Asumiendo que 5 es la opción para solicitar información del usuario.
     
     // Configurar la solicitud de información de usuario
-    chat::UserRequest* solicitudUsuario = peticion.mutable_userrequest();
+    chat::UserRequest* solicitudUsuario = peticion.mutable_users();
     solicitudUsuario->set_user(nombreUsuario);
 
     // Serializar y enviar la petición
@@ -215,26 +181,52 @@ void listenResponses(int sockfd) {
         } else if (respuesta.option() == 2 && respuesta.has_connectedusers()) {
             // Manejo de la lista de usuarios conectados.
             std::cout << "\nUsuarios Conectados:\n";
-            for (int i = 0; i < respuesta.connectedusers().user_size(); ++i) {
-                const auto& user = respuesta.connectedusers().user(i);
+            for (int i = 0; i < respuesta.connectedusers().connectedusers_size(); ++i) {
+                const auto& user = respuesta.connectedusers().connectedusers(i);
                 std::cout << "- " << user.username();
                 if (!user.status().empty()) {
                     std::cout << " (" << user.status() << ")";
                 }
                 std::cout << std::endl;
             }
-        } else if (respuesta.option() == 5 && respuesta.has_userinfo()) {
-            // Manejo de la información de un usuario específico.
-            const auto& userInfo = respuesta.userinfo();
-            std::cout << "\nInformación del Usuario:\n";
-            std::cout << "Nombre: " << userInfo.username() << std::endl;
-            std::cout << "Estado: " << userInfo.status() << std::endl;
-            std::cout << "IP: " << userInfo.ip() << std::endl;
-        }
-
+        } 
     }
 }
 
+
+void processUserChoice(int choice) {
+    switch (choice) {
+        case 1:
+            std::cout << "\n[Chatear con todos] Opcion seleccionada.\n";
+            enviarMensajeBroadcast();
+            break;
+        case 2:
+            std::cout << "\n[Enviar y recibir mensajes directos] Opcion seleccionada.\n";
+            enviarMensajeDirecto();
+            break;
+        case 3:
+            std::cout << "\n[Cambiar de status] Opcion seleccionada.\n";
+            cambiarEstado();
+            break;
+        case 4:
+            std::cout << "\n[Listar usuarios conectados] Opcion seleccionada.\n";
+            listarUsuarios();
+            break;
+        case 5:
+            std::cout << "\n[Desplegar informacion de usuario] Opcion seleccionada.\n";
+            solicitarInformacionUsuario();
+            break;
+        case 6:
+            std::cout << "\n[Ayuda] Opción seleccionada.\n";
+            // Ayuda Funcion
+            break;
+        case 7:
+            std::cout << "\n[Salir] Saliendo del programa...\n";
+            break;
+        default:
+            std::cout << "\nOpcion no valida. Por favor, intenta de nuevo.\n";
+    }
+}
 
 
 int main() {
