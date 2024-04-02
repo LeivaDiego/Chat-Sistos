@@ -1,4 +1,5 @@
 #include <iostream>
+#include <thread>
 #include <string>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -44,7 +45,7 @@ void processUserChoice(int choice) {
             break;
         case 2:
             std::cout << "\n[Enviar y recibir mensajes directos] Opcion seleccionada.\n";
-            // Aquí iría la implementación para enviar y recibir mensajes directos
+            enviarMensajeDirecto()
             break;
         case 3:
             std::cout << "\n[Cambiar de status] Opcion seleccionada.\n";
@@ -67,7 +68,7 @@ void processUserChoice(int choice) {
             // Aquí iría la implementación para salir limpiamente
             break;
         default:
-            std::cout << "\nOpción no válida. Por favor, intenta de nuevo.\n";
+            std::cout << "\nOpcion no valida. Por favor, intenta de nuevo.\n";
     }
 }
 
@@ -99,6 +100,53 @@ void enviarMensajeBroadcast() {
     }
 }
 
+void enviarMensajeDirecto() {
+    std::string destinatario, mensaje;
+    std::cout << "Ingrese el nombre del destinatario: ";
+    std::getline(std::cin >> std::ws, destinatario);
+    std::cout << "Ingrese el mensaje: ";
+    std::getline(std::cin >> std::ws, mensaje);
+
+    chat::ClientPetition peticion;
+    peticion.set_option(4); // Suponiendo que 4 es la opción para enviar un mensaje.
+    
+    // Configurar el mensaje de comunicación
+    chat::MessageCommunication* mensajeComunicacion = peticion.mutable_messagecommunication();
+    mensajeComunicacion->set_sender("tu_nombre_de_usuario"); // Deberías obtener tu nombre de usuario de alguna manera
+    mensajeComunicacion->set_recipient(destinatario); 
+    mensajeComunicacion->set_message(mensaje);
+
+    // Serializar y enviar la petición
+    std::string serializedPeticion;
+    if (!peticion.SerializeToString(&serializedPeticion)) {
+        std::cerr << "Fallo al serializar la petición." << std::endl;
+        return;
+    }
+
+    if (send(sockfd, serializedPeticion.data(), serializedPeticion.size(), 0) == -1) {
+        perror("send fallo");
+    }
+}
+
+
+void listenResponses(int sockfd) {
+    while (true) {
+        // La lógica para recibir y parsear mensajes del servidor va aquí...
+        chat::ServerResponse respuesta;
+        // Asumiendo que has recibido y deserializado `respuesta` correctamente
+        if (respuesta.option() == 4 && respuesta.has_messagecommunication()) {
+            if (!respuesta.messagecommunication().recipient().empty()) {
+                // Suponiendo que un mensaje directo tiene un destinatario especificado
+                std::cout << "Mensaje directo de " << respuesta.messagecommunication().sender() << ": "
+                          << respuesta.messagecommunication().message() << std::endl;
+            }
+        }
+
+    }
+}
+
+
+
 void cambiarEstado() {
     std::string estado;
     std::cout << "Ingrese el nuevo estado (ACTIVO, OCUPADO, INACTIVO): ";
@@ -120,14 +168,22 @@ void cambiarEstado() {
 int main() {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    // Aquí debería ir el código para establecer la conexión con el servidor...
-    // Por simplicidad, asumiremos que sockfd ya ha sido inicializado correctamente.
+    // Código para establecer la conexión con el servidor...
+    // sockfd debe ser inicializado y conectado al servidor aquí.
 
+    // Iniciar el hilo para escuchar las respuestas del servidor
+    std::thread listenerThread(listenResponses, sockfd);
+    
     int choice = 0;
     while (choice != 7) {
         displayDecoratedMenu();
         choice = getUserInput();
         processUserChoice(choice);
+    }
+
+    // Antes de cerrar la aplicación, el hilo `listenerThread` debe estar terminado.
+    if (listenerThread.joinable()) {
+        listenerThread.join(); // Espera a que `listenerThread` termine
     }
 
     // Limpiar recursos de Protocol Buffers antes de salir
