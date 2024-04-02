@@ -1,13 +1,10 @@
 #include <iostream>
 #include <netinet/in.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include "chat.pb.h"
 
 using namespace std;
@@ -298,4 +295,78 @@ void *handleRequests(void *args) {
         }
     }
     return nullptr;
+}
+
+
+int main(int argc, char const* argv[]) {
+    // Verificar que se haya pasado el puerto como argumento
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+    if (argc != 2) {
+        cout << "ERROR: No se declaro un puerto, server <port>" << endl;
+        return 1;
+    }
+
+    long port = strtol(argv[1], nullptr, 10);
+
+    struct sockaddr_in server, client_request;
+
+    socklen_t socket_length;
+
+    int socket_fd, new_req_ip;
+
+    char incoming_request_address[INET_ADDRSTRLEN];
+
+    server.sin_family = AF_INET;
+    server.sin_port = htons(port);
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    memset(&server.sin_zero, 0, sizeof server.sin_zero);
+
+    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+        cout << "ERROR: No se pudo crear el socket" << endl;
+        return 1;
+    }
+
+    if (bind(socket_fd, (struct sockaddr *)&server, sizeof(server)) == -1) {
+        close(socket_fd);
+        cout << "ERROR: No se pudo enlazar la IP al socket" << endl;
+        return 2;
+    }
+
+    if (listen(socket_fd, 5) == -1) {
+        close(socket_fd);
+        cout << "ERROR: No se puede escuchar al socket" << endl;
+        return 3;
+    }
+
+    // No hubo errores, el servidor esta escuchando
+    cout << "EXITO: escuchando en puerto: " << port << endl;
+
+    // Manejar las peticiones entrantes
+    while (true) {
+        // Aceptar la conexion entrante
+        socket_length = sizeof client_request;
+        new_req_ip = accept(socket_fd, (struct sockaddr *)&client_request, &socket_length);
+        
+        if (new_req_ip == -1) {
+            perror("ERROR: No se pudo aceptar la conexion entrante");
+            continue;
+        }
+
+        // Crear un nuevo hilo para manejar la peticion
+        struct Client newClient;
+
+        newClient.socket = new_req_ip;
+
+        inet_ntop(AF_INET, &(client_request.sin_addr), newClient.ip, INET_ADDRSTRLEN);
+        pthread_t thread_id;
+        pthread_attr_t attrs;
+        pthread_attr_init(&attrs);
+        pthread_create(&thread_id, &attrs, requestsHandler, (void *)&newClient);
+    }
+
+    // Cerrar el socket
+    google::protobuf::ShutdownProtobufLibrary();
+    return 0;
 }
