@@ -53,19 +53,18 @@ void processUserChoice(int choice) {
             break;
         case 4:
             std::cout << "\n[Listar usuarios conectados] Opcion seleccionada.\n";
-            // Aquí iría la implementación para listar usuarios
+            listarUsuarios()
             break;
         case 5:
             std::cout << "\n[Desplegar informacion de usuario] Opcion seleccionada.\n";
-            // Aquí iría la implementación para mostrar información de usuario
+            solicitarInformacionUsuario();
             break;
         case 6:
             std::cout << "\n[Ayuda] Opción seleccionada.\n";
-            // Aquí iría la implementación de ayuda
+            // Ayuda Funcion
             break;
         case 7:
             std::cout << "\n[Salir] Saliendo del programa...\n";
-            // Aquí iría la implementación para salir limpiamente
             break;
         default:
             std::cout << "\nOpcion no valida. Por favor, intenta de nuevo.\n";
@@ -129,24 +128,6 @@ void enviarMensajeDirecto() {
 }
 
 
-void listenResponses(int sockfd) {
-    while (true) {
-        // La lógica para recibir y parsear mensajes del servidor va aquí...
-        chat::ServerResponse respuesta;
-        // Asumiendo que has recibido y deserializado `respuesta` correctamente
-        if (respuesta.option() == 4 && respuesta.has_messagecommunication()) {
-            if (!respuesta.messagecommunication().recipient().empty()) {
-                // Suponiendo que un mensaje directo tiene un destinatario especificado
-                std::cout << "Mensaje directo de " << respuesta.messagecommunication().sender() << ": "
-                          << respuesta.messagecommunication().message() << std::endl;
-            }
-        }
-
-    }
-}
-
-
-
 void cambiarEstado() {
     std::string estado;
     std::cout << "Ingrese el nuevo estado (ACTIVO, OCUPADO, INACTIVO): ";
@@ -164,6 +145,97 @@ void cambiarEstado() {
         std::cerr << "Fallo al serializar la petición." << std::endl;
     }
 }
+
+
+void listarUsuarios() {
+    chat::ClientPetition peticion;
+    peticion.set_option(2); // Asumiendo que 2 es la opción para solicitar la lista de usuarios conectados.
+
+    // Serializar y enviar la petición
+    std::string serializedPeticion;
+    if (!peticion.SerializeToString(&serializedPeticion)) {
+        std::cerr << "Fallo al serializar la petición de lista de usuarios." << std::endl;
+        return;
+    }
+
+    if (send(sockfd, serializedPeticion.data(), serializedPeticion.size(), 0) == -1) {
+        perror("send fallo al solicitar lista de usuarios");
+    }
+}
+
+
+void solicitarInformacionUsuario() {
+    std::string nombreUsuario;
+    std::cout << "Ingrese el nombre del usuario para obtener información: ";
+    std::getline(std::cin >> std::ws, nombreUsuario);
+
+    chat::ClientPetition peticion;
+    peticion.set_option(5); // Asumiendo que 5 es la opción para solicitar información del usuario.
+    
+    // Configurar la solicitud de información de usuario
+    chat::UserRequest* solicitudUsuario = peticion.mutable_userrequest();
+    solicitudUsuario->set_user(nombreUsuario);
+
+    // Serializar y enviar la petición
+    std::string serializedPeticion;
+    if (!peticion.SerializeToString(&serializedPeticion)) {
+        std::cerr << "Fallo al serializar la petición de información de usuario." << std::endl;
+        return;
+    }
+
+    if (send(sockfd, serializedPeticion.data(), serializedPeticion.size(), 0) == -1) {
+        perror("send fallo al solicitar información de usuario");
+    }
+}
+
+
+void listenResponses(int sockfd) {
+    while (true) {
+        char buffer[4096]; // Asumiendo que este es el tamaño máximo de tu mensaje.
+        int bytesReceived = recv(sockfd, buffer, sizeof(buffer), 0);
+        if (bytesReceived <= 0) {
+            // Manejar la desconexión o el error.
+            break;
+        }
+
+        // Parsear la respuesta recibida del servidor.
+        chat::ServerResponse respuesta;
+        if (!respuesta.ParseFromArray(buffer, bytesReceived)) {
+            std::cerr << "No se pudo parsear la respuesta del servidor." << std::endl;
+            continue;
+        }
+
+        // Diferenciar el tipo de mensaje basado en la opción.
+        if (respuesta.option() == 4 && respuesta.has_messagecommunication()) {
+            if (!respuesta.messagecommunication().recipient().empty()) {
+                // Manejo de mensajes directos.
+                std::cout << "Mensaje directo de " << respuesta.messagecommunication().sender() << ": "
+                          << respuesta.messagecommunication().message() << std::endl;
+            }
+        } else if (respuesta.option() == 2 && respuesta.has_connectedusers()) {
+            // Manejo de la lista de usuarios conectados.
+            std::cout << "\nUsuarios Conectados:\n";
+            for (int i = 0; i < respuesta.connectedusers().user_size(); ++i) {
+                const auto& user = respuesta.connectedusers().user(i);
+                std::cout << "- " << user.username();
+                if (!user.status().empty()) {
+                    std::cout << " (" << user.status() << ")";
+                }
+                std::cout << std::endl;
+            }
+        } else if (respuesta.option() == 5 && respuesta.has_userinfo()) {
+            // Manejo de la información de un usuario específico.
+            const auto& userInfo = respuesta.userinfo();
+            std::cout << "\nInformación del Usuario:\n";
+            std::cout << "Nombre: " << userInfo.username() << std::endl;
+            std::cout << "Estado: " << userInfo.status() << std::endl;
+            std::cout << "IP: " << userInfo.ip() << std::endl;
+        }
+
+    }
+}
+
+
 
 int main() {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
