@@ -1,4 +1,5 @@
 #include <iostream>
+#include <list>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -70,12 +71,10 @@ void *handleRequests(void *args) {
                     send(socket, buffer, serverMessage.size() + 1, 0);
                     cout << "ERROR: No se pudo agregar usuario al socket: " << socket << " porque ya existe" << endl;
                 } else {
-                    Client client;
-                    client.socket = socket;
-                    client.username = username;
-                    client.status = "activo";
-                    strcpy(client.ip, newClient->ip);
-                    connectedClients.push_back(client);
+                    client->socket = socket;
+                    client->username = username;
+                    client->status = "activo";
+                    connectedClients.push_back(*client);
 
                     response->Clear();
                     response->set_option(1);
@@ -85,7 +84,7 @@ void *handleRequests(void *args) {
                     strcpy(buffer, serverMessage.c_str());
                     send(socket, buffer, serverMessage.size() + 1, 0);
 
-                    cout << "Usuario " << client.username << " agregado al sistema con socket: " << socket << endl;
+                    cout << "Usuario " << client->username << " agregado al sistema con socket: " << socket << endl;
                 }
                 break;
             }
@@ -121,7 +120,7 @@ void *handleRequests(void *args) {
                     strcpy(buffer, serverMessage.c_str());
                     send(socket, buffer, serverMessage.size() + 1, 0);
 
-                    cout << "Usuario: " << newClient->username << " solicito todos los usuarios" << endl;
+                    cout << "Usuario: " << client->username << " solicito todos los usuarios" << endl;
                 }
                 break;
             }
@@ -205,7 +204,7 @@ void *handleRequests(void *args) {
                     }
                 }
                 // Enviar mensaje a un usuario especifico
-                else {
+                else if (!recipient.empty()){
                     auto recipientIt = find_if(connectedClients.begin(), connectedClients.end(), [&recipient](const Client& c) {
                         return c.username == recipient;
                     });
@@ -363,7 +362,7 @@ int main(int argc, char const* argv[]) {
         pthread_t thread_id;
         pthread_attr_t attrs;
         pthread_attr_init(&attrs);
-        pthread_create(&thread_id, &attrs, requestsHandler, (void *)&newClient);
+        pthread_create(&thread_id, &attrs, handleRequests, (void *)&newClient);
     }
 
     // Cerrar el socket
