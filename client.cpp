@@ -1,12 +1,14 @@
 #include <iostream>
 #include <thread>
+#include <cstring> 
 #include <string>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "chat.pb.h" 
+#include "chat.pb.h"
 
+using namespace std;
 
 int sockfd; // Socket descriptor
 
@@ -17,7 +19,7 @@ int getUserInput();
 void processUserChoice(int choice);
 
 void displayDecoratedMenu() {
-    std::cout << "============================================================\n";
+    std::cout << "============================================================";
     std::cout << "\n================== Bienvenido al chat UVG ==================\n";
     std::cout << "============================================================\n";
     std::cout << "| 1. Chatear con todos los usuarios (broadcasting)         |\n";
@@ -229,29 +231,59 @@ void processUserChoice(int choice) {
 }
 
 
-int main() {
+int main(int argc, char const *argv[]) {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-    // Código para establecer la conexión con el servidor...
-    // sockfd debe ser inicializado y conectado al servidor aquí.
+    if (argc != 4) {
+        cerr << "Uso: " << argv[0] << " <nombredeusuario> <IPdelservidor> <puertodelservidor>" << endl;
+        return 1;
+    }
 
-    // Iniciar el hilo para escuchar las respuestas del servidor
-    std::thread listenerThread(listenResponses, sockfd);
-    
+    string nombre_usuario = argv[1];
+    string ip_servidor = argv[2];
+    int puerto_servidor = stoi(argv[3]);
+
+    // Creación del socket
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        perror("Creación del socket fallido");
+        return 1;
+    }
+
+    // Estructura para la dirección del servidor
+    sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(puerto_servidor);
+    if (inet_pton(AF_INET, ip_servidor.c_str(), &server_addr.sin_addr) <= 0) {
+        cerr << "Dirección IP inválida o no soportada" << endl;
+        return 1;
+    }
+
+    // Conexión al servidor
+    if (connect(sockfd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Conexión al servidor fallida");
+        return 1;
+    }
+
+    cout << "Conectado al servidor." << endl;
+
+    // Iniciar hilo para recibir mensajes del servidor
+    thread recibir_thread(listenResponses, sockfd);
+    recibir_thread.detach();
+
+    // Ciclo principal para interactuar con el usuario
     int choice = 0;
     while (choice != 7) {
         displayDecoratedMenu();
         choice = getUserInput();
-        processUserChoice(choice);
+        processUserChoice(choice, sockfd, nombre_usuario); 
     }
 
-    // Antes de cerrar la aplicación, el hilo `listenerThread` debe estar terminado.
-    if (listenerThread.joinable()) {
-        listenerThread.join(); // Espera a que `listenerThread` termine
+    // Cerrar la conexión
+    if (recibir_thread.joinable()) {
+        recibir_thread.join();
     }
-
-    // Limpiar recursos de Protocol Buffers antes de salir
+    close(sockfd);
     google::protobuf::ShutdownProtobufLibrary();
-
     return 0;
 }
