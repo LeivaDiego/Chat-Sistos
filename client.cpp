@@ -156,6 +156,27 @@ void solicitarInformacionUsuario() {
     }
 }
 
+void mostrarAyuda() {
+    std::cout << "\n================== Ayuda del Chat ==================\n";
+    std::cout << "Este proyecto está basado en el propuesto por Bob Dugan y Erik Véliz en 2006.\n";
+    std::cout << "Con este trabajo se reforzarán los conocimientos sobre procesos, threads, concurrencia y\n";
+    std::cout << "comunicación entre procesos. El objetivo es desarrollar una aplicación de chat en C/C++.\n\n";
+
+    std::cout << "El cliente podrá implementar la interfaz que el desarrollador desee, pero deberá\n";
+    std::cout << "proveer al usuario las facilidades para:\n";
+    std::cout << "1. Chatear con todos los usuarios (broadcasting).\n";
+    std::cout << "2. Enviar y recibir mensajes directos, privados, aparte del chat general.\n";
+    std::cout << "3. Cambiar de status.\n";
+    std::cout << "4. Listar los usuarios conectados al sistema de chat.\n";
+    std::cout << "5. Desplegar información de un usuario en particular.\n";
+    std::cout << "6. Ayuda.\n";
+    std::cout << "7. Salir.\n\n";
+
+    std::cout << "Para interactuar con el sistema, elija una de las opciones del menú principal.\n";
+    std::cout << "===================================================\n\n";
+}
+
+
 
 void listenResponses(int sockfd) {
     while (true) {
@@ -220,7 +241,7 @@ void processUserChoice(int choice) {
             break;
         case 6:
             std::cout << "\n[Ayuda] Opción seleccionada.\n";
-            // Ayuda Funcion
+            mostrarAyuda()
             break;
         case 7:
             std::cout << "\n[Salir] Saliendo del programa...\n";
