@@ -5,7 +5,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <thread>
-#include "protocol.pb.h"
+#include "chat.pb.h"
 
 using namespace std;
 std::unordered_map<string,thread> privates;
