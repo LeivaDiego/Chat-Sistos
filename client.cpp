@@ -241,7 +241,7 @@ void processUserChoice(int choice) {
             break;
         case 6:
             std::cout << "\n[Ayuda] Opción seleccionada.\n";
-            mostrarAyuda()
+            mostrarAyuda();
             break;
         case 7:
             std::cout << "\n[Salir] Saliendo del programa...\n";

@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pthread.h>
-#include "protocol.pb.h"
+#include "chat.pb.h"
 
 
 using namespace std;
@@ -153,7 +153,7 @@ void handleMessageSending(int socket, const chat::ClientPetition& request, Clien
     // Verificar si el mensaje es grupal
     if (!request.messagecommunication().has_recipient() || request.messagecommunication().recipient() == "everyone") { // Chat global
         cout << "----------"<< "ENVIANDO MENSAJE GRUPAL" << "----------" << endl;
-        cout <<"Usuario: " request.messagecommunication().sender() << " esta enviando un mensaje grupal" << endl;
+        cout <<"Usuario: " << request.messagecommunication().sender() << " esta enviando un mensaje grupal" << endl;
         for (auto& i : connected_clients) {
             chat::MessageCommunication message;
             if (i.first == request.messagecommunication().sender()) {
